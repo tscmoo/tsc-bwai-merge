@@ -342,6 +342,7 @@ bool should_transition() {
 #include "strat_p_any_ffe_zealots.h"
 #include "strat_p_any_2base_carrier.h"
 #include "strat_p_any_macro.h"
+#include "strat_p_any_ffe_wee.h"
 
 #include "strat_z_any_hydra_14min.h"
 #include "strat_z_any_13pool_muta.h"
@@ -449,6 +450,7 @@ a_map<a_string, std::function<void()>> strat_map = {
 	{ "p any ffe zealots", wrap<strat_p_any_ffe_zealots>() },
 	{ "p any 2base carrier", wrap<strat_p_any_2base_carriers>() },
 	{ "p any macro", wrap<strat_p_any_macro>() },
+	{ "p any ffe wee", wrap<strat_p_any_ffe_wee>() },
 	
 	{ "z any hydra 14min", wrap<strat_z_any_hydra_14min>() },
 	{ "z any 13pool muta", wrap<strat_z_any_13pool_muta>() },
@@ -761,6 +763,7 @@ void strategy_task() {
 
 	} else if (players::my_player->race == race_protoss) {
 		
+		run_strat("p any ffe wee");
 //		run_strat("p any ffe");
 //		run_strat("p any 2base carrier");
 		//run_strat("p 3gate robo");

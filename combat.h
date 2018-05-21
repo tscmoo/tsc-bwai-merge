@@ -1148,20 +1148,20 @@ void update_groups() {
 		new_groups[i].idx = i;
 	}
 
-	for (auto&g : new_groups) {
-		if (true) {
-			a_map<unit_type*, int> counts;
-			for (unit*e : g.enemies) ++counts[e->type];
-			log(log_level_test, "group value %g - enemies -", g.value);
-			for (auto&v : counts) {
-				log(log_level_test, "%dx%s ", std::get<1>(v), std::get<0>(v)->name);
-			}
-			if (g.is_aggressive_group) log(log_level_test, " (aggressive)");
-			if (g.is_defensive_group) log(log_level_test, " (defensive)");
-			if (g.is_main_army) log(log_level_test, " (main army)");
-			log(log_level_test, "\n");
-		}
-	}
+//	for (auto&g : new_groups) {
+//		if (true) {
+//			a_map<unit_type*, int> counts;
+//			for (unit*e : g.enemies) ++counts[e->type];
+//			log(log_level_test, "group value %g - enemies -", g.value);
+//			for (auto&v : counts) {
+//				log(log_level_test, "%dx%s ", std::get<1>(v), std::get<0>(v)->name);
+//			}
+//			if (g.is_aggressive_group) log(log_level_test, " (aggressive)");
+//			if (g.is_defensive_group) log(log_level_test, " (defensive)");
+//			if (g.is_main_army) log(log_level_test, " (main army)");
+//			log(log_level_test, "\n");
+//		}
+//	}
 
 	a_unordered_set<combat_unit*> available_units;
 	for (auto*c : live_combat_units) {
@@ -1650,10 +1650,10 @@ void update_groups() {
 			}
 		}
 
-		log(log_level_test, "group %d: %d allies %d enemies\n", g.idx, g.allies.size(), g.enemies.size());
-		for (auto*cu : g.allies) {
-			log(log_level_test, " ally %s\n", cu->u->type->name);
-		}
+//		log(log_level_test, "group %d: %d allies %d enemies\n", g.idx, g.allies.size(), g.enemies.size());
+//		for (auto*cu : g.allies) {
+//			log(log_level_test, " ally %s\n", cu->u->type->name);
+//		}
 	}
 
 	for (auto ci = available_units.begin(); ci != available_units.end();) {
@@ -1775,19 +1775,19 @@ void update_groups() {
 	}
 	available_units.clear();
 	
-	for (auto& g : new_groups) {
-		log(log_level_test, "group %d: %d allies %d enemies\n", g.idx, g.allies.size(), g.enemies.size());
-		for (auto* cu : g.allies) {
-			log(log_level_test, " ally %s\n", cu->u->type->name);
+//	for (auto& g : new_groups) {
+//		log(log_level_test, "group %d: %d allies %d enemies\n", g.idx, g.allies.size(), g.enemies.size());
+//		for (auto* cu : g.allies) {
+//			log(log_level_test, " ally %s\n", cu->u->type->name);
 			
-			for (auto& g2 : new_groups) {
-				if (&g == &g2) continue;
-				for (auto* cu2 : g2.allies) {
-					if (cu == cu2) xcept("waa unit is in multiple groups");
-				}
-			}
-		}
-	}
+//			for (auto& g2 : new_groups) {
+//				if (&g == &g2) continue;
+//				for (auto* cu2 : g2.allies) {
+//					if (cu == cu2) xcept("waa unit is in multiple groups");
+//				}
+//			}
+//		}
+//	}
 
 	bool has_ventral_sacs = players::my_player->has_upgrade(upgrade_types::ventral_sacs);
 	a_unordered_set<combat_unit*> given_lifts;
@@ -4515,10 +4515,17 @@ void do_attack(combat_unit* a, const a_vector<unit*>& allies, const a_vector<uni
 			if (e->dead) return std::make_tuple(std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity());
 			
 			double d = units_distance(a->u, e);
-			if ((e->stats->air_weapon || e->type == unit_types::bunker) && (a->last_win_ratio < 128.0 || d <= 32 * 9)) {
-				return std::make_tuple(-1.0, d, std::numeric_limits<double>::infinity());
+			if (u->target == e) d -= 64;
+			if ((e->stats->air_weapon || e->type == unit_types::bunker || e->type->is_worker) && (a->last_win_ratio < 128.0 || d <= 32 * 9)) {
+				d -= 32 * 8;
+				if (d < 0) d = 0;
+				if (u->target == e && d == 0) d = -1.0;
+				return std::make_tuple(d - 32 * 8, d, e->energy + e->hp);
 			} else {
-				return std::make_tuple(d, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity());
+				d -= 32 * 8;
+				if (d < 0) d = 0;
+				if (u->target == e && d == 0) d = -1.0;
+				return std::make_tuple(d, e->energy + e->hp, std::numeric_limits<double>::infinity());
 			}
 		};
 	} else if (a->u->is_flying) {
@@ -6301,6 +6308,24 @@ void do_attack(combat_unit* a, const a_vector<unit*>& allies, const a_vector<uni
 			weapon_stats*e_weapon = a->u->is_flying ? target->stats->air_weapon : target->stats->ground_weapon;
 			if (my_weapon && d < my_weapon->max_range - 64) {
 				if (!e_weapon || my_weapon->max_range - 64 > e_weapon->max_range) {
+					do_run(a, enemies);
+					return;
+				}
+			}
+		}
+	}
+
+	if (u->type == unit_types::zealot && target && target->type == unit_types::vulture && a->subaction == combat_unit::subaction_fight) {
+		if (units_distance(u, target) > 32 * 4) {
+			double nearest_building = get_best_score_value(my_buildings, [&](unit* n) {
+				return sc_distance(u->pos - n->pos);
+			});
+			if (nearest_building > 32 * 8) {
+				int n_vultures = 0;
+				for (unit* e : enemies) {
+					if (e->type == unit_types::vulture) ++n_vultures;
+				}
+				if (n_vultures >= enemies.size() / 2 + enemies.size() / 4) {
 					do_run(a, enemies);
 					return;
 				}
@@ -8802,8 +8827,9 @@ void fight() {
 
 			bool has_siege_mode = players::my_player->upgrades.count(upgrade_types::siege_mode) != 0;
 #ifndef USE_COMBAT_EVAL2
-			auto add = [&](combat_eval::eval&eval, unit*u, int team) -> combat_eval::combatant& {
+			auto add = [&](combat_eval::eval&eval, unit*u, int team) {
 				//log("add %s to team %d\n", u->type->name, team);
+				if (u->stasis_timer || u->maelstrom_timer || u->lockdown_timer) return;
 				if (u->type == unit_types::bunker && u->is_completed) {
 					for (int i = 0; i < u->marines_loaded; ++i) {
 						eval.add_unit(units::get_unit_stats(unit_types::marine, u->owner), team);
@@ -8812,7 +8838,7 @@ void fight() {
 				auto*st = u->stats;
 				int cooldown_override = 0;
 				if (!u->visible) cooldown_override = 0;
-				if (u->type->requires_pylon && !u->is_powered) cooldown_override = 15 * 60;
+				if (u->type->requires_pylon && !u->is_powered) return;
 				if (team == 0 && u->type == unit_types::siege_tank_tank_mode) {
 					st = units::get_unit_stats(unit_types::siege_tank_siege_mode, u->owner);
 				}
@@ -8832,7 +8858,6 @@ void fight() {
 				eval.set_unit_stuff(c, u);
 				if (cooldown_override > c.cooldown) c.cooldown = cooldown_override;
 				//log(log_level_info, "added %s to team %d -- move %g, shields %g, hp %g, cooldown %d\n", st->type->name, team, c.move, c.shields, c.hp, c.cooldown);
-				return c;
 			};
 			int eval_frames = 15 * 20;
 			//int eval_frames = 15 * 40;
@@ -9720,7 +9745,7 @@ void fight() {
 				bool is_fighting = false;
 				if (current_frame - a->last_fight <= 30 && current_frame - a->last_run > 30) is_fighting = true;
 				a->is_nearest = nearest_combat_unit == a;
-				a->is_nearest = nearest_weak_combat_unit == a;
+				a->is_nearest_weak = nearest_weak_combat_unit == a;
 				a->nearest_ally = nearest_combat_unit;
 				a->last_win_ratio = win_ratio;
 				a->last_op_detectors = op_detectors;
@@ -10657,6 +10682,7 @@ void update_aoe_spellcasting() {
 		}
 		if (!my_completed_units_of_type[unit_types::high_templar].empty()) {
 			if (players::my_player->has_upgrade(upgrade_types::psionic_storm)) {
+				do_aoe(unit_types::high_templar, storm_target_taken, 75.0, 32 * 2.25, 32 * 9, 32 * 9 + 32 * 9, 200.0, use_storm_please, false, false);
 				//do_aoe(unit_types::high_templar, storm_target_taken, 75.0, 32 * 2.25, 32 * 9, 32 * 9 + 32 * 6, 200.0, use_storm_please, false, false);
 				//do_aoe(unit_types::high_templar, storm_target_taken, 75.0, 32 * 1.5, 32 * 9, 32 * 9 + 32 * 0, 200.0, use_storm_please, false, false);
 				multitasking::yield_point();

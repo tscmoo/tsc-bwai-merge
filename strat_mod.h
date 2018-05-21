@@ -221,7 +221,7 @@ struct strat_mod : strat_base {
 			auto eval = [&](xy pos) {
 				auto& bs = grid::get_build_square(pos);
 				if (!build::build_is_valid(bs, ut)) {
-					game->drawBoxMap(pos.x, pos.y, pos.x + ut_w * 32, pos.y + ut_h * 32, BWAPI::Colors::Red);
+					//game->drawBoxMap(pos.x, pos.y, pos.x + ut_w * 32, pos.y + ut_h * 32, BWAPI::Colors::Red);
 					return;
 				}
 				xy cpos = pos + xy(ut_w * 16, ut_h * 16);
@@ -249,7 +249,7 @@ struct strat_mod : strat_base {
 				eval(xy(x, cc_build_pos.y + cc_h * 32));
 			}
 
-			game->drawBoxMap(best.x, best.y, best.x + ut_w * 32, best.y + ut_h * 32, BWAPI::Colors::Green);
+			//game->drawBoxMap(best.x, best.y, best.x + ut_w * 32, best.y + ut_h * 32, BWAPI::Colors::Green);
 
 			return best;
 		};

@@ -130,7 +130,7 @@ struct strat_p_any_ffe : strat_mod {
 		if (go_corsairs) {
 			build_n(corsair, 9);
 		}
-		
+
 		if (players::opponent_player->race == race_protoss) {
 			maxprod(zealot);
 			build(dragoon);
@@ -175,9 +175,9 @@ struct strat_p_any_ffe : strat_mod {
 		}
 		
 		if (current_frame < 15 * 60 * 10) {
-			
+
 			if (players::opponent_player->race == race_protoss && !players::opponent_player->random) {
-				
+
 				maxprod(dragoon);
 				build_total(probe, 21);
 				build(dragoon);
@@ -192,18 +192,18 @@ struct strat_p_any_ffe : strat_mod {
 				build_total(probe, 14);
 				build_n(gateway, 1);
 				build_n(probe, 13);
-				
+
 				//build_n(forge, 1);
 				build_n(nexus, 2);
 				build_n(pylon, 1);
 				build_n(probe, 12);
-				
+
 				if (count_units_plus_production(st, forge)) {
 					if (enemy_army_supply >= 8.0) build_n(photon_cannon, 3);
 					if (enemy_army_supply >= 11.0) build_n(photon_cannon, 4);
 					if (enemy_army_supply >= 14.0) build_n(photon_cannon, 5);
 				} else if (enemy_zealot_count > zealot_count) build(zealot);
-				
+
 			} else {
 				build(probe);
 				if (total_units_made_of_type[probe] >= 25) {
@@ -214,7 +214,7 @@ struct strat_p_any_ffe : strat_mod {
 				upgrade(protoss_ground_weapons_1);
 				build_n(stargate, 1);
 				build(zealot);
-				
+
 				build_total(probe, 22);
 				build_n(cybernetics_core, 1);
 				build_total(probe, 18);
@@ -251,7 +251,7 @@ struct strat_p_any_ffe : strat_mod {
 					build_n(photon_cannon, 5);
 				}
 			}
-			
+
 		} else {
 			if (st.frame >= 15 * 60 * 20) {
 				if ((force_expand || (can_expand && probe_count >= max_mineral_workers + 8)) && count_production(st, nexus) == 0) {

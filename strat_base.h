@@ -294,13 +294,14 @@ struct strat_base {
 						}
 					}
 				}
+				score -= diag_distance(s->pos - xy(grid::map_width / 2, grid::map_height / 2)) * 2;
 			}
 			bool has_gas = false;
 			for (auto&r : s->resources) {
 				res += r.u->resources;
 				if (r.u->type->is_gas) has_gas = true;
 			}
-			score -= (has_gas ? res : res / 4) / 20 + ned + workers_nearby * 1024.0;
+			score -= (has_gas ? res : res / 4) / 40 + ned + workers_nearby * 1024.0;
 			return score;
 		}, std::numeric_limits<double>::infinity());
 	};

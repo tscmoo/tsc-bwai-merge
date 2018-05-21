@@ -2445,7 +2445,7 @@ void process(const a_vector<unit_controller*>&controllers) {
 		}
 		
 		if (c->u->type == unit_types::carrier && (c->action == unit_controller::action_attack || c->action == unit_controller::action_kite) && c->target) {
-			game->drawLineMap(c->u->pos.x, c->u->pos.y, c->target->pos.x, c->target->pos.y, BWAPI::Colors::Red);
+			//game->drawLineMap(c->u->pos.x, c->u->pos.y, c->target->pos.x, c->target->pos.y, BWAPI::Colors::Red);
 			
 			double max_d = 32 * 8;
 			
@@ -2476,6 +2476,38 @@ void process(const a_vector<unit_controller*>&controllers) {
 				continue;
 			}
 			
+		}
+
+		if (c->u->type == unit_types::dragoon && (c->action == unit_controller::action_attack || c->action == unit_controller::action_kite) && c->target) {
+			if (!u->is_attacking && u->weapon_cooldown > latency_frames + 4 && c->target->type == unit_types::siege_tank_siege_mode) {
+				double x = 0.0;
+				double y = 0.0;
+				int n = 0;
+				for (unit* n : my_units) {
+					if (n != u && n->type == u->type && units_distance(u, n) < 20) {
+						x += n->pos.x;
+						y += n->pos.y;
+						++n;
+					}
+				}
+				if (n) {
+					x /= n;
+					y /= n;
+					x -= u->pos.x;
+					y -= u->pos.y;
+					x = u->pos.x - x;
+					y = u->pos.y - y;
+					xy move_to((int)x, (int)y);
+					c->last_move = current_frame;
+					if (c->last_move_to_pos != move_to || current_frame >= c->last_move_to + 30) {
+						c->last_move_to = current_frame;
+						c->last_move_to_pos = move_to;
+						c->u->game_unit->move(BWAPI::Position(move_to.x, move_to.y));
+						c->noorder_until = current_frame + rng(4);
+					}
+					continue;
+				}
+			}
 		}
 
 		bool do_attack = false;

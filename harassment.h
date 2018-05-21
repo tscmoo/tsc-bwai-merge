@@ -202,6 +202,7 @@ namespace harassment {
 	xy largest_enemy_army_pos;
 
 	a_unordered_set<unit*> science_vessel_targets;
+	a_unordered_set<unit*> scout_targets;
 
 	struct queen_scout {
 		refcounter<combat::combat_unit> h;
@@ -303,18 +304,51 @@ namespace harassment {
 				xy largest_group_pos;
 				double largest_group_supply = 0.0;
 				for (auto& g : combat::groups) {
+					if (g.allies.empty()) continue;
 					double supply = 0.0;
+					double x = 0.0;
+					double y = 0.0;
+					int n = 0;
 					for (auto* c : g.allies) {
 						supply += c->u->type->required_supply;
+//						if (diag_distance(c->u->pos - s.a->u->pos) <= 32 * 16) {
+//							x += c->u->pos.x;
+//							y += c->u->pos.y;
+//							++n;
+//						}
 					}
-					if (supply > largest_group_supply) {
+					if (n == 0) {
+						n = 1;
+						x = g.allies.front()->u->pos.x;
+						y = g.allies.front()->u->pos.y;
+					}
+					if (supply > largest_group_supply && n) {
 						largest_group_supply = supply;
+						x /= n;
+						y /= n;
 						largest_group_pos = g.allies.front()->u->pos;
+						//largest_group_pos = xy((int)x, (int)y);
+//						largest_group_pos = get_best_score(g.allies, [&](auto* a) {
+//							return diag_distance(a->u->pos - s.a->u->pos);
+//						})->u->pos;
 					}
 				}
-				if (largest_group_pos != xy()) {
+				if (largest_group_pos != xy() && diag_distance(s.a->u->pos - largest_group_pos) > 32 * 8) {
 					do_add_open = false;
 					add_open(largest_group_pos, 0);
+				} else {
+					int n = 0;
+					for (auto& g : combat::groups) {
+						for (auto* u : g.enemies) {
+							if (u->type == unit_types::siege_tank_tank_mode || u->type == unit_types::siege_tank_siege_mode) {
+								add_open(u->pos, 0);
+								++n;
+							}
+						}
+					}
+					if (n) {
+						do_add_open = false;
+					}
 				}
 			} else if (s.a->u->type == unit_types::science_vessel || s.a->u->type == unit_types::observer) {
 				auto i = need_detection_at.find(&s);
@@ -395,6 +429,9 @@ namespace harassment {
 				}
 				if (u->type == unit_types::science_vessel) {
 					if (science_vessel_targets.count(u)) age = max_age;
+				}
+				if (u->type == unit_types::scout) {
+					if (scout_targets.count(u)) age = max_age;
 				}
 				if (prefer_air_units && !u->is_flying) {
 					age = max_age / 2 + age / 2;
@@ -513,7 +550,8 @@ namespace harassment {
 			}
 			double dr = 32 * 14;
 			if (s.a->u->type == unit_types::queen) dr = 32 * 10;
-			if (s.a->u->type == unit_types::arbiter) dr = 32 * 10;
+			//if (s.a->u->type == unit_types::arbiter) dr = 32 * 10;
+			if (s.a->u->type == unit_types::arbiter) dr = 32 * 20;
 			if (s.a->u->type == unit_types::science_vessel) dr = 32 * 11;
 			if (d <= dr) {
 				s.nearby_enemies.push_back(u);
@@ -698,7 +736,7 @@ namespace harassment {
 //								}
 //							}
 //						}
-						if (a->u->type == unit_types::reaver) {
+						if (a->u->type == unit_types::reaver && s.loaded_units.empty()) {
 							if (a->u->type->space_required > space_left) continue;
 							auto h = combat::request_control(a);
 							if (h) {
@@ -1134,14 +1172,19 @@ namespace harassment {
 
 						if (combat::disable_target_taken.find(u) != combat::disable_target_taken.end()) continue;
 
-						for (int i = 0; i != 3; ++i) {
+						for (int i = 0; i != 7; ++i) {
 							xy pos = u->pos;
 							if (i == 1) pos.x += 56;
 							else if (i == 2) pos.y += 56;
+							else if (i == 3) pos.x += 63;
+							else if (i == 4) pos.y += 63;
+							else if (i == 5) pos += xy(56, 56);
+							else if (i == 6) pos += xy(63, 63);
 							double cost = 0.0;
 							for (unit* u2 : s.nearby_enemies) {
 								if (u2->type == unit_types::science_vessel) continue;
-								if (u2->type->total_gas_cost < 50) continue;
+								if (u2->speed >= 4.0) continue;
+								//if (u2->type->total_gas_cost < 50) continue;
 								if (u2->building) continue;
 								if (u2->stasis_timer) continue;
 								//if (u2->type->is_worker) continue;
@@ -1160,12 +1203,14 @@ namespace harassment {
 					}
 					//if (best_cost) log(log_level_test, "best_cost %g\n", best_cost);
 					double min_cost = 300.0;
+					//double min_cost = 200.0;
 					min_cost *= s.a->u->hp / s.a->u->stats->hp;
 					if (best_cost >= min_cost) {
-						if (unit_distance(s.a->u, best_pos) <= 32 * 9) {
+						game->drawLineMap(s.a->u->pos.x, s.a->u->pos.y, best_pos.x, best_pos.y, BWAPI::Colors::Blue);
+						if (sc_distance(s.a->u->pos - best_pos) <= 32 * 9) {
 							for (unit* u2 : s.nearby_enemies) {
 								if (u2->type == unit_types::science_vessel) continue;
-								if (u2->type->total_gas_cost < 50) continue;
+								//if (u2->type->total_gas_cost < 50) continue;
 								if (u2->building) continue;
 								if (u2->stasis_timer) continue;
 								if (u2->type->is_worker) continue;
@@ -1177,11 +1222,13 @@ namespace harassment {
 							s.a->u->game_unit->useTech(upgrade_types::stasis_field->game_tech_type, BWAPI::Position(best_pos.x, best_pos.y));
 							s.a->last_used_special = current_frame;
 							s.a->u->controller->noorder_until = current_frame + 30;
+							return;
 						} else {
 							if (current_frame - s.a->u->controller->noorder_until >= 6) {
 								s.a->u->game_unit->move(BWAPI::Position(best_pos.x, best_pos.y));
 								s.a->u->controller->noorder_until = current_frame + 6;
 							}
+							return;
 						}
 					}
 				}
@@ -1887,6 +1934,7 @@ namespace harassment {
 			n_attacking_tanks = 0;
 			n_attacking_science_vessels = 0;
 			science_vessel_targets.clear();
+			scout_targets.clear();
 			for (auto& g : combat::groups) {
 				if (g.is_aggressive_group || g.is_defensive_group) continue;
 				for (unit* e : g.enemies) {
@@ -1911,6 +1959,24 @@ namespace harassment {
 				if (g.ground_dpf + g.air_dpf >= highest_dpf) {
 					largest_enemy_army_pos = g.enemies.front()->pos;
 					highest_dpf = g.ground_dpf + g.air_dpf;
+				}
+				for (auto* a : g.allies) {
+					if (a->u->type == unit_types::shuttle || a->u->type == unit_types::reaver) {
+						unit* best_target = nullptr;
+						double best_d = std::numeric_limits<double>::infinity();
+						for (unit* e : g.enemies) {
+							if (e->stats->air_weapon) {
+								double d = sc_distance(a->u->pos - e->pos);
+								if (d < best_d) {
+									best_d = d;
+									best_target = e;
+								}
+							}
+						}
+						if (best_target) {
+							scout_targets.insert(best_target);
+						}
+					}
 				}
 			}
 			log("n_attacking_tanks is %d\n", n_attacking_tanks);
